@@ -1296,7 +1296,11 @@ class RoutineCanvas(wx.ScrolledWindow):
         staticCompons = []
         for n, component in enumerate(self.routine):
             if component.type == 'Static':
-                staticCompons.append(component)
+                startTime, duration, nonSlipSafe = component.getStartAndDuration()
+                if startTime!=None and duration!=None:
+                    staticCompons.append(component)
+                else:
+                    rowComponents.append(component)
             else:
                 rowComponents.append(component)
 
@@ -1310,6 +1314,8 @@ class RoutineCanvas(wx.ScrolledWindow):
         self.drawTimeGrid(self.pdc,yPos,yPosBottom)
         #normal components, one per row
         for component in rowComponents:
+            if component.type=='Static':
+                self.drawStatic(self.pdc, component, yPos)
             self.drawComponent(self.pdc, component, yPos)
             yPos+=self.componentStep
 
@@ -1358,7 +1364,7 @@ class RoutineCanvas(wx.ScrolledWindow):
         font = self.GetFont()
         font.SetPointSize(size)
         dc.SetFont(font)
-    def drawStatic(self, dc, component, yPosTop, yPosBottom):
+    def drawStatic(self, dc, component, yPosTop, yPosBottom=0):
         """draw a static component box"""
         #set an id for the region of this component (so it can act as a button)
         ##see if we created this already
@@ -1394,6 +1400,23 @@ class RoutineCanvas(wx.ScrolledWindow):
             dc.DrawRectangle(xSt, yPosTop-nameH*4, w, h+nameH*5)
             dc.DrawText(name, x-nameW/2, y)
             fullRect.Union(wx.Rect(xSt, yPosTop, w, h))#update bounds to include time bar
+            dc.SetIdBounds(id,fullRect)
+        else:
+            iconYOffset = (6,6,0)[self.drawSize]
+            thisIcon = components.icons[component.getType()][str(self.iconSize)]#getType index 0 is main icon
+            dc.DrawBitmap(thisIcon, self.iconXpos,yPosTop+iconYOffset, True)
+            fullRect = wx.Rect(self.iconXpos, yPosTop, thisIcon.GetWidth(),thisIcon.GetHeight())
+
+            self.setFontSize(self.fontBaseSize/self.dpi, dc)
+
+            name = component.params['name'].val
+            #get size based on text
+            w,h = self.GetFullTextExtent(name)[0:2]
+            #draw text
+            x = self.iconXpos-self.dpi/10-w + (self.iconSize,self.iconSize,10)[self.drawSize]
+            y = yPosTop+thisIcon.GetHeight()/2-h/2 + (5,5,-2)[self.drawSize]
+            dc.DrawText(name, x-20, y)
+            fullRect.Union(wx.Rect(x-20,y,w,h))
             dc.SetIdBounds(id,fullRect)
     def drawComponent(self, dc, component, yPos):
         """Draw the timing of one component on the timeline"""
